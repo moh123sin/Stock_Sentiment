@@ -6,9 +6,9 @@ import matplotlib.dates as mdates
 from datetime import datetime, timedelta
 import warnings
 warnings.filterwarnings("ignore")
-
+ 
 st.set_page_config(page_title="Stock Sentiment Dashboard", layout="wide", page_icon="📈")
-
+ 
 st.markdown("""
 <style>
 .bull  {color:#27ae60;font-weight:bold;}
@@ -17,26 +17,26 @@ st.markdown("""
 h1 {color:#2E74B5;}
 .card {background:#f8f9fa;border-radius:8px;padding:15px;border-left:4px solid #2E74B5;margin:5px 0;}
 </style>""", unsafe_allow_html=True)
-
+ 
 # ── Simulated data (mimics real Yahoo Finance + NewsAPI output) ───────────────
 @st.cache_data
 def generate_stock_data(ticker, days=180):
     np.random.seed(hash(ticker) % 1000)
     dates = pd.date_range(end=datetime.today(), periods=days, freq="B")
-
+ 
     # Price simulation (GBM)
     start_prices = {"AAPL":175, "MSFT":380, "GOOGL":140, "TSLA":220, "AMZN":185, "NVDA":650}
     S0 = start_prices.get(ticker, 100)
     mu, sigma = 0.0003, 0.018
     returns = np.random.normal(mu, sigma, days)
     prices  = S0 * np.exp(np.cumsum(returns))
-
+ 
     # Volume
     volume = np.random.randint(20_000_000, 80_000_000, days)
-
+ 
     # Sentiment scores (-1 to 1) correlated with next-day returns
     sentiment = np.clip(returns * 30 + np.random.normal(0, 0.3, days), -1, 1)
-
+ 
     # News headlines simulation
     headlines_pos = [
         "Strong earnings beat analyst expectations",
@@ -59,7 +59,7 @@ def generate_stock_data(ticker, days=180):
         "Management presents at investor conference",
         "Annual report filed with SEC",
     ]
-
+ 
     news = []
     for i, s in enumerate(sentiment):
         if s > 0.2:
@@ -68,7 +68,7 @@ def generate_stock_data(ticker, days=180):
             news.append(np.random.choice(headlines_neg))
         else:
             news.append(np.random.choice(headlines_neu))
-
+ 
     df = pd.DataFrame({
         "date": dates, "close": prices.round(2),
         "volume": volume, "sentiment": sentiment.round(3),
@@ -81,29 +81,29 @@ def generate_stock_data(ticker, days=180):
     df["sentiment_label"] = df["sentiment"].apply(
         lambda x: "Bullish" if x > 0.1 else ("Bearish" if x < -0.1 else "Neutral"))
     return df
-
+ 
 @st.cache_data
 def sentiment_correlation(df):
     """Compute correlation between sentiment and next-day return."""
     df2 = df.copy()
     df2["next_return"] = df2["return_1d"].shift(-1)
     return df2[["sentiment","next_return"]].corr().iloc[0,1]
-
+ 
 # ── Sidebar ───────────────────────────────────────────────────────────────────
 st.sidebar.title("⚙️ Settings")
 ticker   = st.sidebar.selectbox("Select Stock", ["AAPL","MSFT","GOOGL","TSLA","AMZN","NVDA"])
 period   = st.sidebar.selectbox("Time Period", ["30 Days","90 Days","180 Days"], index=1)
 days_map = {"30 Days":30, "90 Days":90, "180 Days":180}
 days     = days_map[period]
-
+ 
 df = generate_stock_data(ticker, 180).tail(days).reset_index(drop=True)
 corr = sentiment_correlation(df)
-
+ 
 # ── Header ────────────────────────────────────────────────────────────────────
 st.title("📈 Stock Market Sentiment Dashboard")
 st.markdown(f"*Real-time sentiment analysis and price intelligence for **{ticker}***")
 st.markdown("---")
-
+ 
 # ── KPIs ──────────────────────────────────────────────────────────────────────
 k1,k2,k3,k4,k5 = st.columns(5)
 latest_price   = df["close"].iloc[-1]
@@ -111,23 +111,23 @@ price_change   = df["close"].pct_change().iloc[-1] * 100
 avg_sentiment  = df["sentiment"].mean()
 bullish_days   = (df["sentiment_label"] == "Bullish").sum()
 bearish_days   = (df["sentiment_label"] == "Bearish").sum()
-
+ 
 k1.metric(f"{ticker} Price",    f"${latest_price:.2f}", f"{price_change:+.2f}%")
 k2.metric("Avg Sentiment",      f"{avg_sentiment:+.3f}")
 k3.metric("Bullish Days",       f"{bullish_days}")
 k4.metric("Bearish Days",       f"{bearish_days}")
 k5.metric("Sentiment-Return ρ", f"{corr:.3f}")
-
+ 
 st.markdown("---")
 tab1, tab2, tab3, tab4 = st.tabs(["📊 Price & Sentiment", "📰 News Feed", "🔬 Analysis", "📋 Data Table"])
-
+ 
 # ════════════════════════════════════════════════════════
 # TAB 1 — Price & Sentiment
 # ════════════════════════════════════════════════════════
 with tab1:
     fig, (ax1, ax2, ax3) = plt.subplots(3, 1, figsize=(12, 9), sharex=True,
                                          gridspec_kw={"height_ratios":[3,1.5,1]})
-
+ 
     # Price + MAs
     ax1.plot(df["date"], df["close"],  color="#2E74B5", lw=1.5, label="Price")
     ax1.plot(df["date"], df["sma_20"], color="#e67e22", lw=1,   linestyle="--", label="SMA 20", alpha=0.8)
@@ -136,7 +136,7 @@ with tab1:
     ax1.set_title(f"{ticker} Price with Moving Averages")
     ax1.legend(loc="upper left", fontsize=8)
     ax1.grid(alpha=0.3)
-
+ 
     # Sentiment
     colors = ["#27ae60" if s > 0.1 else "#e74c3c" if s < -0.1 else "#f39c12"
               for s in df["sentiment"]]
@@ -145,45 +145,46 @@ with tab1:
     ax2.set_ylabel("Sentiment Score")
     ax2.set_title("Daily News Sentiment")
     ax2.grid(alpha=0.3)
-
+ 
     # Volume
     ax3.bar(df["date"], df["volume"]/1e6, color="#5BA3E0", alpha=0.6)
     ax3.set_ylabel("Volume (M)")
     ax3.set_xlabel("Date")
     ax3.xaxis.set_major_formatter(mdates.DateFormatter("%b %Y"))
     ax3.grid(alpha=0.3)
-
+ 
     plt.tight_layout()
     st.pyplot(fig)
     plt.close()
-
+ 
 # ════════════════════════════════════════════════════════
 # TAB 2 — News Feed
 # ════════════════════════════════════════════════════════
 with tab2:
     st.subheader(f"📰 Recent News Headlines — {ticker}")
     filter_sent = st.selectbox("Filter by Sentiment", ["All","Bullish","Bearish","Neutral"])
-
+ 
     news_df = df[["date","headline","sentiment","sentiment_label"]].tail(30).sort_values("date", ascending=False)
     if filter_sent != "All":
         news_df = news_df[news_df["sentiment_label"] == filter_sent]
-
+ 
     for _, row in news_df.iterrows():
         icon  = "🟢" if row["sentiment_label"] == "Bullish" else "🔴" if row["sentiment_label"] == "Bearish" else "🟡"
-        color = "bull" if row["sentiment_label"] == "Bullish" else "bear" if row["sentiment_label"] == "Bearish" else "neutral"
-        st.markdown(f"""<div class='card'>
+        bg    = "#e8f5e9" if row["sentiment_label"] == "Bullish" else "#fdecea" if row["sentiment_label"] == "Bearish" else "#fff8e1"
+        border= "#27ae60" if row["sentiment_label"] == "Bullish" else "#e74c3c" if row["sentiment_label"] == "Bearish" else "#f39c12"
+        st.markdown(f"""<div style='background:{bg};border-left:4px solid {border};border-radius:6px;padding:12px 16px;margin:6px 0;'>
         {icon} <strong>{row['date'].strftime('%b %d, %Y')}</strong> &nbsp;
-        <span class='{color}'>[{row['sentiment_label']} | Score: {row['sentiment']:+.2f}]</span><br>
-        {row['headline']}
+        <span style='color:{border};font-weight:bold;'>[{row['sentiment_label']} | Score: {row['sentiment']:+.2f}]</span><br>
+        <span style='color:#222;font-size:15px;'>{row['headline']}</span>
         </div>""", unsafe_allow_html=True)
-
+ 
 # ════════════════════════════════════════════════════════
 # TAB 3 — Analysis
 # ════════════════════════════════════════════════════════
 with tab3:
     st.subheader("🔬 Sentiment vs Price Return Analysis")
     col1, col2 = st.columns(2)
-
+ 
     with col1:
         st.markdown("**Sentiment Distribution**")
         fig, ax = plt.subplots(figsize=(5,3.5))
@@ -193,7 +194,7 @@ with tab3:
                autopct="%1.1f%%", startangle=90)
         ax.set_title("Sentiment Breakdown")
         plt.tight_layout(); st.pyplot(fig); plt.close()
-
+ 
     with col2:
         st.markdown("**Sentiment vs Next-Day Return (Scatter)**")
         df2 = df.copy()
@@ -210,13 +211,13 @@ with tab3:
         ax.set_xlabel("Sentiment Score"); ax.set_ylabel("Next-Day Return (%)")
         ax.set_title(f"Correlation: {corr:.3f}")
         plt.tight_layout(); st.pyplot(fig); plt.close()
-
+ 
     st.markdown("**Average Return by Sentiment Category**")
     df["next_return"] = df["return_1d"].shift(-1) * 100
     avg_ret = df.groupby("sentiment_label")["next_return"].agg(["mean","std","count"]).round(3)
     avg_ret.columns = ["Avg Return (%)","Std Dev (%)","Days"]
     st.dataframe(avg_ret, use_container_width=True)
-
+ 
     st.markdown("**30-Day Rolling Sentiment Trend**")
     fig, ax = plt.subplots(figsize=(11,3))
     rolling = df["sentiment"].rolling(10).mean()
@@ -229,7 +230,7 @@ with tab3:
     ax.set_title("10-Day Rolling Average Sentiment")
     ax.legend(); ax.grid(alpha=0.3)
     plt.tight_layout(); st.pyplot(fig); plt.close()
-
+ 
 # ════════════════════════════════════════════════════════
 # TAB 4 — Data Table
 # ════════════════════════════════════════════════════════
