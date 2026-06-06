@@ -3,7 +3,7 @@
 An interactive dashboard combining stock price data with NLP-based news sentiment analysis to identify market signals.
 
 ## 🔗 Live Demo
-Deploy free on [Streamlit Cloud](https://streamlit.io/cloud).
+[Open the Stock Sentiment Dashboard](https://stocksentiment-q7cpc2gmvpmkob8rkym63z.streamlit.app/)
 
 ## 🎯 Business Problem
 Investors and analysts need to quickly gauge market sentiment alongside price action. This dashboard integrates news sentiment scoring with technical price indicators to surface trading signals and sentiment-return correlations.
